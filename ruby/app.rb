@@ -5,7 +5,7 @@ require 'digest/sha2'
 require 'dalli'
 require 'rack/session/dalli'
 require 'erubis'
-require 'tempfile'
+require 'redcarpet'
 
 class Isucon3App < Sinatra::Base
   $stdout.sync = true
@@ -48,12 +48,8 @@ class Isucon3App < Sinatra::Base
     end
 
     def gen_markdown(md)
-      tmp = Tempfile.open("isucontemp")
-      tmp.puts(md)
-      tmp.close
-      html = `../bin/markdown #{tmp.path}`
-      tmp.unlink
-      return html
+      @markdown ||= Redcarpet::Markdown.new(Redcarpet::Render::HTML, :autolink => false, :space_after_headers => true)
+      return @markdown.render(md)
     end
 
     def anti_csrf
