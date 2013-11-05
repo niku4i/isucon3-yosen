@@ -8,6 +8,7 @@ gem 'erubis',  '2.7.0'
 gem 'foreman', '0.63.0'
 gem 'mysql2-cs-bind', '0.0.6'
 gem 'redcarpet'
+gem 'redis'
 
 group :development do
   # run "bundle exec shotgun" on development

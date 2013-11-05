@@ -6,6 +6,7 @@ require 'dalli'
 require 'rack/session/dalli'
 require 'erubis'
 require 'redcarpet'
+require 'redis'
 
 class Isucon3App < Sinatra::Base
   $stdout.sync = true
@@ -28,6 +29,11 @@ class Isucon3App < Sinatra::Base
         :database => config['dbname'],
         :reconnect => true,
       )
+    end
+
+    def redis_client
+      return $redis if $redis
+      $redis = Redis.new(:path => "/tmp/redis.sock")
     end
 
     def get_user
@@ -66,8 +72,8 @@ class Isucon3App < Sinatra::Base
     mysql = connection
     user  = get_user
 
-    total = mysql.query("SELECT count(*) AS c FROM memos WHERE is_private=0").first["c"]
-    memos = mysql.query("SELECT memos.*, users.username FROM memos JOIN users on users.id = memos.user WHERE is_private=0 ORDER BY created_at DESC LIMIT 100")
+    total = redis_client.get("total_count")
+    memos = mysql.query("SELECT memos.*, users.username FROM memos JOIN users on users.id = memos.user JOIN (SELECT memos.id from memos WHERE is_private=0 ORDER BY created_at DESC LIMIT 100) as tmp on tmp.id = memos.id");
     erb :index, :layout => :base, :locals => {
       :memos => memos,
       :page  => 0,
@@ -81,8 +87,8 @@ class Isucon3App < Sinatra::Base
     user  = get_user
 
     page  = params["page"].to_i
-    total = mysql.xquery('SELECT count(*) AS c FROM memos WHERE is_private=0').first["c"]
-    memos = mysql.xquery("SELECT memos.*, users.username FROM memos JOIN users on users.id = memos.user WHERE is_private=0 ORDER BY created_at DESC LIMIT 100 OFFSET #{page * 100}")
+    total = redis_client.get("total_count")
+    memos = mysql.xquery("SELECT memos.*, users.username FROM memos JOIN users on users.id = memos.user JOIN (SELECT memos.id from memos WHERE is_private=0 ORDER BY created_at DESC LIMIT 100 OFFSET #{page * 100}) as tmp on tmp.id = memos.id");
     if memos.count == 0
       halt 404, "404 Not Found"
     end
@@ -188,6 +194,11 @@ class Isucon3App < Sinatra::Base
     user  = get_user
     require_user(user)
     anti_csrf
+
+    # if public memo
+    if params["is_private"].to_i == 0
+      redis_client.incr("total_count")
+    end
 
     mysql.xquery(
       'INSERT INTO memos (user, content, is_private, created_at) VALUES (?, ?, ?, ?)',
