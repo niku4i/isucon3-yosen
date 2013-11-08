@@ -2,3 +2,5 @@ mysql -uroot -proot isucon -e  "CREATE INDEX memos_idx_is_private_created_at ON 
 mysql -uroot -proot isucon -e  "CREATE INDEX memos_idx_user_created_at ON memos (user,created_at);"
 
 redis-cli -s /tmp/redis.sock set total_count 20540
+
+/home/isucon/env.sh ruby /home/isucon/webapp/ruby/public-ids-in-redis.rb

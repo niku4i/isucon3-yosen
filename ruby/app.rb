@@ -208,6 +208,12 @@ class Isucon3App < Sinatra::Base
       Time.now,
     )
     memo_id = mysql.last_id
+
+    # Store id in Redis list if public memo
+    if params[:is_private].to_i == 0
+      redis_client.lpush('public_memo_ids', memo_id)
+    end
+
     redirect "/memo/#{memo_id}"
   end
 
