@@ -182,7 +182,7 @@ class Isucon3App < Sinatra::Base
     memos = []
     older = nil
     newer = nil
-    results = mysql.xquery("SELECT * FROM memos WHERE user=? #{cond} ORDER BY created_at", memo["user"])
+    results = mysql.xquery("SELECT id FROM memos WHERE user=? #{cond} ORDER BY created_at", memo["user"])
     results.each do |m|
       memos.push(m)
     end
