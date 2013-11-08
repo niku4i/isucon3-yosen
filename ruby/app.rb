@@ -176,22 +176,13 @@ class Isucon3App < Sinatra::Base
     memo["content_html"] = gen_markdown(memo["content"])
     if user["id"] == memo["user"]
       cond = ""
+      index = "FORCE INDEX(memos_idx_user_created_at)"
     else
       cond = "AND is_private=0"
+      index = ""
     end
-    memos = []
-    older = nil
-    newer = nil
-    results = mysql.xquery("SELECT id FROM memos WHERE user=? #{cond} ORDER BY created_at", memo["user"])
-    results.each do |m|
-      memos.push(m)
-    end
-    0.upto(memos.count - 1).each do |i|
-      if memos[i]["id"] == memo["id"]
-        older = memos[i - 1] if i > 0
-        newer = memos[i + 1] if i < memos.count
-      end
-    end
+    older = mysql.xquery("SELECT id FROM memos #{index} WHERE user=? #{cond} AND created_at < ? ORDER BY created_at DESC LIMIT 1", memo["user"], memo["created_at"]).first
+    newer = mysql.xquery("SELECT id FROM memos #{index} WHERE user=? #{cond} AND created_at > ? ORDER BY created_at LIMIT 1", memo["user"], memo["created_at"]).first
     erb :memo, :layout => :base, :locals => {
       :user  => user,
       :memo  => memo,
