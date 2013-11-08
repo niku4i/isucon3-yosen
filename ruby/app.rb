@@ -66,6 +66,17 @@ class Isucon3App < Sinatra::Base
     def url_for(path)
       "http://#{request.host}:#{request.port}#{request.script_name}#{path}"
     end
+    
+    # @page 0, 1, 2 ...
+    def get_memos(page)
+      start = page * 100
+      stop  = start + 99
+      mysql = connection
+      public_memo_ids = redis_client.lrange("public_memo_ids", start, stop)
+      start_id = public_memo_ids.last
+      end_id =  public_memo_ids.first
+      memos = mysql.xquery("SELECT memos.*, users.username FROM memos JOIN users on users.id = memos.user JOIN (SELECT memos.id from memos WHERE is_private=0 AND id BETWEEN ? AND ? ORDER BY created_at DESC) as tmp on tmp.id = memos.id", start_id, end_id);
+    end
   end
 
   get '/' do
@@ -73,7 +84,7 @@ class Isucon3App < Sinatra::Base
     user  = get_user
 
     total = redis_client.get("total_count")
-    memos = mysql.query("SELECT memos.*, users.username FROM memos JOIN users on users.id = memos.user JOIN (SELECT memos.id from memos WHERE is_private=0 ORDER BY created_at DESC LIMIT 100) as tmp on tmp.id = memos.id");
+    memos = get_memos(0)
     erb :index, :layout => :base, :locals => {
       :memos => memos,
       :page  => 0,
@@ -88,7 +99,7 @@ class Isucon3App < Sinatra::Base
 
     page  = params["page"].to_i
     total = redis_client.get("total_count")
-    memos = mysql.xquery("SELECT memos.*, users.username FROM memos JOIN users on users.id = memos.user JOIN (SELECT memos.id from memos WHERE is_private=0 ORDER BY created_at DESC LIMIT 100 OFFSET #{page * 100}) as tmp on tmp.id = memos.id");
+    memos = get_memos(page)
     if memos.count == 0
       halt 404, "404 Not Found"
     end
